@@ -1,6 +1,7 @@
-#ifndef COMPILER
-#define COMPILER 1
+#ifndef TP_COMPILER
+#define TP_COMPILER 1
 #endif
+
 #include "tp.h"
 #include "list.c"
 #include "dict.c"
@@ -9,17 +10,20 @@
 #include "builtins.c"
 #include "gc.c"
 #include "ops.c"
-void compiler(TP);
+void tp_compiler(TP);
 #include "vm.c"
-#if COMPILER
+
+#if TP_COMPILER
 #include "bc.c"
-void compiler(TP) {
-	import(tp,0,"tokenize",tokenize);
-	import(tp,0,"parse",parse);
-	import(tp,0,"encode",encode);
-	import(tp,0,"py2bc",py2bc);
-	call(tp,"py2bc","_init",None);
+void tp_compiler(TP) {
+    tp_import(tp,0,"tokenize",tp_tokenize);
+    tp_import(tp,0,"parse",tp_parse);
+    tp_import(tp,0,"encode",tp_encode);
+    tp_import(tp,0,"py2bc",tp_py2bc);
+    tp_call(tp,"py2bc","_init",None);
 }
 #else
-void compiler(TP) { }
+void tp_compiler(TP) { }
 #endif
+
+//

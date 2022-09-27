@@ -1,124 +1,146 @@
-void grey(TP,obj v) {
-	if (v.type < tSTRING || (!v.gci.data) || *v.gci.data) { return; }
-	*v.gci.data = 1;
-	if (v.type == tSTRING || v.type == DATA) {
-		_list_appendx(tp,tp->black,v);
-		return;
-	}
-	_list_appendx(tp,tp->grey,v);
+// tp_obj tp_track(TP,tp_obj v) { return v; }
+// void tp_grey(TP,tp_obj v) { }
+// void tp_full(TP) { }
+// void tp_gc_init(TP) { }
+// void tp_gc_deinit(TP) { }
+// void tp_delete(TP,tp_obj v) { }
+
+void tp_grey(TP,tp_obj v) {
+    if (v.type < TP_STRING || (!v.gci.data) || *v.gci.data) { return; }
+    *v.gci.data = 1;
+    if (v.type == TP_STRING || v.type == TP_DATA) {
+        _tp_list_appendx(tp,tp->black,v);
+        return;
+    }
+    _tp_list_appendx(tp,tp->grey,v);
 }
-void follow(TP,obj v) {
-	int type = v.type;
-	if (type == LIST) {
-		int n;
-		for (n=0; n<v.list.val->len; n++) {
-			grey(tp,v.list.val->items[n]);
-		}
-	}
-	if (type == DICT) {
-		int i;
-		for (i=0; i<v.dict.val->len; i++) {
-			int n = _dict_next(tp,v.dict.val);
-			grey(tp,v.dict.val->items[n].key);
-			grey(tp,v.dict.val->items[n].val);
-		}
-	}
-	if (type == FNC) {
-		grey(tp,v.fnc.val->self);
-		grey(tp,v.fnc.val->globals);
-	}
+
+void tp_follow(TP,tp_obj v) {
+    int type = v.type;
+    if (type == TP_LIST) {
+        int n;
+        for (n=0; n<v.list.val->len; n++) {
+            tp_grey(tp,v.list.val->items[n]);
+        }
+    }
+    if (type == TP_DICT) {
+        int i;
+        for (i=0; i<v.dict.val->len; i++) {
+            int n = _tp_dict_next(tp,v.dict.val);
+            tp_grey(tp,v.dict.val->items[n].key);
+            tp_grey(tp,v.dict.val->items[n].val);
+        }
+    }
+    if (type == TP_FNC) {
+        tp_grey(tp,v.fnc.val->self);
+        tp_grey(tp,v.fnc.val->globals);
+    }
 }
-void reset(TP) {
-	int n;
-	for (n=0; n<tp->black->len; n++) {
-		*tp->black->items[n].gci.data = 0;
-	}
-	_list *tmp = tp->white; tp->white = tp->black; tp->black = tmp;
+
+void tp_reset(TP) {
+    int n;
+    for (n=0; n<tp->black->len; n++) {
+        *tp->black->items[n].gci.data = 0;
+    }
+    _tp_list *tmp = tp->white; tp->white = tp->black; tp->black = tmp;
 }
-void tgc_init(TP) {
-	tp->white = _list_new();
-	tp->strings = _dict_new();
-	tp->grey = _list_new();
-	tp->black = _list_new();
-	tp->steps = 0;
+
+void tp_gc_init(TP) {
+    tp->white = _tp_list_new();
+    tp->strings = _tp_dict_new();
+    tp->grey = _tp_list_new();
+    tp->black = _tp_list_new();
+    tp->steps = 0;
 }
-void tgc_deinit(TP) {
-	_list_free(tp->white);
-	_dict_free(tp->strings);
-	_list_free(tp->grey);
-	_list_free(tp->black);
+
+void tp_gc_deinit(TP) {
+    _tp_list_free(tp->white);
+    _tp_dict_free(tp->strings);
+    _tp_list_free(tp->grey);
+    _tp_list_free(tp->black);
 }
-void tdelete(TP,obj v) {
-	int type = v.type;
-	if (type == LIST) {
-		_list_free(v.list.val);
-		return;
-	} else if (type == DICT) {
-		_dict_free(v.dict.val);
-		return;
-	} else if (type == tSTRING) {
-		tfree(v.string.info);
-		return;
-	} else if (type == DATA) {
-		if (v.data.meta && v.data.meta->free) {
-			v.data.meta->free(tp,v);
-		}
-		tfree(v.data.info);
-		return;
-	} else if (type == FNC) {
-		tfree(v.fnc.val);
-		return;
-	}
-	traise(,"tdelete(%s)",STR(v));
+
+void tp_delete(TP,tp_obj v) {
+    int type = v.type;
+    if (type == TP_LIST) {
+        _tp_list_free(v.list.val);
+        return;
+    } else if (type == TP_DICT) {
+        _tp_dict_free(v.dict.val);
+        return;
+    } else if (type == TP_STRING) {
+        tp_free(v.string.info);
+        return;
+    } else if (type == TP_DATA) {
+        if (v.data.meta && v.data.meta->free) {
+            v.data.meta->free(tp,v);
+        }
+        tp_free(v.data.info);
+        return;
+    } else if (type == TP_FNC) {
+        tp_free(v.fnc.val);
+        return;
+    }
+    tp_raise(,"tp_delete(%s)",STR(v));
 }
-void collect(TP) {
-	int n;
-	for (n=0; n<tp->white->len; n++) {
-		obj r = tp->white->items[n];
-		if (*r.gci.data) { continue; }
-		if (r.type == tSTRING) {
-			_dict_del(tp,tp->strings,r,"collect");
-		}
-		tdelete(tp,r);
-	}
-	tp->white->len = 0;
-	reset(tp);
+
+void tp_collect(TP) {
+    int n;
+    for (n=0; n<tp->white->len; n++) {
+        tp_obj r = tp->white->items[n];
+        if (*r.gci.data) { continue; }
+        if (r.type == TP_STRING) {
+            //this can't be moved into tp_delete, because tp_delete is
+            // also used by tp_track_s to delete redundant strings
+            _tp_dict_del(tp,tp->strings,r,"tp_collect");
+        }
+        tp_delete(tp,r);
+    }
+    tp->white->len = 0;
+    tp_reset(tp);
 }
-void _tgcinc(TP) {
-	if (!tp->grey->len) { return; }
-	obj v = _list_pop(tp,tp->grey,tp->grey->len-1,"_tgcinc");
-	follow(tp,v);
-	_list_appendx(tp,tp->black,v);
+
+void _tp_gcinc(TP) {
+    if (!tp->grey->len) { return; }
+    tp_obj v = _tp_list_pop(tp,tp->grey,tp->grey->len-1,"_tp_gcinc");
+    tp_follow(tp,v);
+    _tp_list_appendx(tp,tp->black,v);
 }
-void full(TP) {
-	while (tp->grey->len) {
-		_tgcinc(tp);
-	}
-	collect(tp);
-	follow(tp,tp->root);
+
+void tp_full(TP) {
+    while (tp->grey->len) {
+        _tp_gcinc(tp);
+    }
+    tp_collect(tp);
+    tp_follow(tp,tp->root);
 }
-void tgcinc(TP) {
-	tp->steps += 1;
-	if (tp->steps < GCMAX || tp->grey->len > 0) {
-		_tgcinc(tp); _tgcinc(tp);
-	}
-	if (tp->steps < GCMAX || tp->grey->len > 0) { return; }
-	tp->steps = 0;
-	full(tp);
-	return;
+
+void tp_gcinc(TP) {
+    tp->steps += 1;
+    if (tp->steps < TP_GCMAX || tp->grey->len > 0) {
+        _tp_gcinc(tp); _tp_gcinc(tp);
+    }
+    if (tp->steps < TP_GCMAX || tp->grey->len > 0) { return; }
+    tp->steps = 0;
+    tp_full(tp);
+    return;
 }
-obj track(TP,obj v) {
-	if (v.type == tSTRING) {
-		int i = _dict_find(tp,tp->strings,v);
-		if (i != -1) {
-			tdelete(tp,v);
-			v = tp->strings->items[i].key;
-			grey(tp,v);
-			return v;
-		}
-		_dict_setx(tp,tp->strings,v,True);
-	}
-	tgcinc(tp);
-	grey(tp,v);
-	return v;
+
+tp_obj tp_track(TP,tp_obj v) {
+    if (v.type == TP_STRING) {
+        int i = _tp_dict_find(tp,tp->strings,v);
+        if (i != -1) {
+            tp_delete(tp,v);
+            v = tp->strings->items[i].key;
+            tp_grey(tp,v);
+            return v;
+        }
+        _tp_dict_setx(tp,tp->strings,v,True);
+    }
+    tp_gcinc(tp);
+    tp_grey(tp,v);
+    return v;
 }
+
+//
+

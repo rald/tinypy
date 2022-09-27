@@ -3,66 +3,6 @@
 #include "tinypy.h"
 
 
-char *real_load_file(char *path) {
-    char *source = NULL;
-
-    FILE *fp = fopen(path, "r");
-
-    if (fp != NULL) {
-        if (fseek(fp, 0L, SEEK_END) == 0) {
-            long bufsize = ftell(fp);
-            if (bufsize == -1) { /* Error */ }
-
-            source = malloc(sizeof(char) * (bufsize + 1));
-
-            if (fseek(fp, 0L, SEEK_SET) != 0) { /* Error */ }
-
-            size_t newLen = fread(source, sizeof(char), bufsize, fp);
-            if (newLen == 0) {
-                fprintf(stderr,"Error: cannot read file %s", path);
-                free(source);
-                source = NULL;
-            } else {
-                source[++newLen] = '\0';
-            }
-        }
-        fclose(fp);
-    } else {
-        perror(path);
-    }
-    
-    return source;
-}
-
-tp_obj load_file(TP) {
-	return tp_string(real_load_file(TP_STR()));
-}
-
-int real_save_file(char *path,char *source,size_t length) {
-    FILE *fp=fopen(path,"w");
-
-    if(fp==NULL) {
-        perror(path);
-        return 1;
-    }
-
-    if(fwrite(source,sizeof(char),length,fp)<length) {
-        perror(path);
-        return 2;
-    }
-
-    return 0;
-}
-
-tp_obj save_file(TP) {
-	return tp_number(real_save_file(TP_STR(),TP_STR(),TP_NUM()));
-}
-
-tp_obj delay(TP) {
-	SDL_Delay(TP_NUM());
-	return None;
-}
-
 SDL_Surface *s;
 tp_obj set_mode(TP) {
     int w = TP_NUM();
@@ -71,20 +11,6 @@ tp_obj set_mode(TP) {
     s = SDL_SetVideoMode(w,h,32,0);
     return None;
 }
-
-Uint32 real_get_pixel(int x, int y) {
-	if (x<s->clip_rect.x || y <s->clip_rect.y || x >= (s->clip_rect.x+s->clip_rect.w) || y >=(s->clip_rect.y+s->clip_rect.h)) { return 0; }
-	Uint32 *p = (Uint32*)((Uint8*)s->pixels+y*s->pitch);
-	return (Uint32)(*(p+x));
-}
-
-tp_obj get_pixel(TP) {
-	int x = TP_NUM();
-	int y = TP_NUM();
-	int c = real_get_pixel(x,y);
-	return tp_number(c);
-}
-
 
 void real_set_pixel(int x, int y, int c) {
     if (x<s->clip_rect.x || y <s->clip_rect.y || x >= (s->clip_rect.x+s->clip_rect.w) || y >=(s->clip_rect.y+s->clip_rect.h)) { return ; }  
@@ -149,12 +75,6 @@ tp_obj get_mouse_pos(TP) {
 
 void sdl_init(TP) {
     tp_obj context = tp->builtins;
-    tp_set(tp,context,tp_string("load_file"),tp_fnc(tp,load_file));
-    tp_set(tp,context,tp_string("save_file"),tp_fnc(tp,save_file));
-    tp_set(tp,context,tp_string("delay"),tp_fnc(tp,delay));
-    tp_set(tp,context,tp_string("get_pixel"),tp_fnc(tp,get_pixel));
-
-
     tp_set(tp,context,tp_string("set_mode"),tp_fnc(tp,set_mode));
     tp_set(tp,context,tp_string("set_pixel"),tp_fnc(tp,set_pixel));
     tp_set(tp,context,tp_string("update"),tp_fnc(tp,update));

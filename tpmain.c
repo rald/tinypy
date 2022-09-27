@@ -1,7 +1,10 @@
 #include "tp.c"
+
 int main(int argc, char *argv[]) {
-	tvm *tp = tinit(argc,argv);
-	call(tp,"py2bc","tinypy",None);
-	deinit(tp);
-	return(0);
+    tp_vm *tp = tp_init(argc,argv);
+    tp_call(tp,"py2bc","tinypy",None);
+    tp_deinit(tp);
+    return(0);
 }
+
+//

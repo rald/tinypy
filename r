@@ -1,2 +1,1 @@
-. ~/.profile
-./tinypy-sdl game.py 
+./tinypy-sdl pd.py
